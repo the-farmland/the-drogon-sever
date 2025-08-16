@@ -1,13 +1,6 @@
-# Stage 1: Get Drogon from official image
-FROM drogonframework/drogon:v2.0.0 AS drogon-builder
-
-# Stage 2: Build our application
 FROM ubuntu:22.04 AS builder
 
-# Copy Drogon installation
-COPY --from=drogon-builder /usr/local /usr/local
-
-# Install build dependencies
+# Install build dependencies and Drogon
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
@@ -20,7 +13,13 @@ RUN apt-get update && \
         zlib1g-dev \
         uuid-dev \
         libjsoncpp-dev \
+        wget \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Drogon from package (alternative approach)
+RUN wget https://github.com/drogonframework/drogon/releases/download/v2.0.0/drogon-v2.0.0-ubuntu22.04-amd64.deb -O drogon.deb && \
+    apt-get install -y ./drogon.deb && \
+    rm drogon.deb
 
 WORKDIR /app
 COPY . .
@@ -29,7 +28,6 @@ COPY . .
 RUN cmake -B build -DCMAKE_BUILD_TYPE=Release && \
     cmake --build build --config Release
 
-# Stage 3: Runtime image
 FROM ubuntu:22.04
 
 # Install runtime dependencies
