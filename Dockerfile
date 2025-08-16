@@ -19,6 +19,7 @@ RUN apt-get update && \
         libjsoncpp-dev \
         libbrotli-dev \
         libzstd-dev \
+        doxygen \
     && rm -rf /var/lib/apt/lists/*
 
 # Build and install Drogon from source with BUILD_DOC=OFF
@@ -53,6 +54,7 @@ RUN apt-get update && \
         libuuid1 \
         libbrotli1 \
         libzstd1 \
+        doxygen \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
