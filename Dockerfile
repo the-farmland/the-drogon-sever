@@ -18,7 +18,7 @@ RUN apt-get update && \
 # Build and install Drogon with complete doc/examples/test disable
 RUN git clone https://github.com/drogonframework/drogon && \
     cd drogon && \
-    git checkout v1.8.3 && \  # Proven stable version
+    git checkout v1.8.3 && \
     mkdir build && \
     cd build && \
     cmake -DCMAKE_BUILD_TYPE=Release \
