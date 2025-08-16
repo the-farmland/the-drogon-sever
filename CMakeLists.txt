@@ -1,37 +1,56 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.15)
 project(ThePlusTVServer)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Find Drogon, which is the core framework for our server.
-# This single command handles finding Drogon and its dependencies like jsoncpp, OpenSSL, etc.
+# Find necessary packages
+find_package(Boost REQUIRED COMPONENTS system thread)
+find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED)
 find_package(Drogon REQUIRED)
 
-# Find nlohmann_json for our business logic.
-find_package(nlohmann_json 3.11.2 REQUIRED)
+# Find nlohmann_json (fall back to download if necessary)
+find_package(nlohmann_json 3.11.2 QUIET)
+if(NOT nlohmann_json_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+        nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.11.2
+    )
+    FetchContent_MakeAvailable(nlohmann_json)
+endif()
 
-# Find the PostgreSQL client library (libpq).
-find_library(LIBPQ_LIBRARY NAMES pq REQUIRED)
-find_path(LIBPQ_INCLUDE_DIR NAMES libpq-fe.h REQUIRED)
+# Find PostgreSQL libpq headers and library
+find_library(LIBPQ_LIBRARY NAMES pq PATHS /usr/lib/x86_64-linux-gnu /usr/lib /usr/local/lib)
+find_path(LIBPQ_INCLUDE_DIR NAMES libpq-fe.h PATHS /usr/include/postgresql /usr/include)
 
-# Add necessary include directories.
+if(NOT LIBPQ_LIBRARY OR NOT LIBPQ_INCLUDE_DIR)
+    message(FATAL_ERROR "PostgreSQL libpq library or includes not found")
+endif()
+
+# Add project directories to the include path
 include_directories(
     .
+    ${Boost_INCLUDE_DIRS}
     ${LIBPQ_INCLUDE_DIR}
+    ${OPENSSL_INCLUDE_DIR}
 )
 
-# Define the server executable with all its source files.
-# We've added RpcController.h and CorsFilter.h (header-only in this implementation).
+# Executable definition
 add_executable(ThePlusTVServer
     main.cpp
     LocationService.cpp
 )
 
-# Link all required libraries to the executable.
-# Drogon::Drogon links the main Drogon library and its dependencies.
-# We still link libpq and nlohmann_json separately.
+# Link libraries
 target_link_libraries(ThePlusTVServer PRIVATE
-    Drogon::Drogon
+    Threads::Threads
+    Boost::system
+    Boost::thread
     nlohmann_json::nlohmann_json
     ${LIBPQ_LIBRARY}
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    Drogon::Drogon
 )
