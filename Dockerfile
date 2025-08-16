@@ -21,13 +21,13 @@ RUN apt-get update && \
         libzstd-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Build and install Drogon from source
+# Build and install Drogon from source with BUILD_DOC=OFF
 RUN git clone https://github.com/drogonframework/drogon && \
     cd drogon && \
     git checkout v1.9.1 && \
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_BUILD_TYPE=Release .. && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_DOC=OFF .. && \
     make -j$(nproc) && \
     make install && \
     cd ../.. && \
