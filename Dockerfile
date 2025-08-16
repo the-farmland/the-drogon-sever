@@ -1,15 +1,19 @@
 # Stage 1: The Builder
-# This stage installs all development tools and libraries, compiles the application,
-# but will be discarded later to keep the final image small.
+# This stage compiles the application.
 FROM ubuntu:22.04 AS builder
 
-# Prevent interactive prompts during package installation
+# Prevent interactive prompts during package installation.
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update package lists and install all necessary build dependencies.
-# The 'libdrogon-dev' package automatically pulls in the correct versions of
-# its own dependencies (like libjsoncpp-dev) for Ubuntu 22.04.
+# Update package lists and install dependencies.
+# 1. Install 'software-properties-common' which provides the 'add-apt-repository' command.
+# 2. Add the official Drogon PPA repository.
+# 3. Update the package lists AGAIN to fetch the contents of the new PPA.
+# 4. Install all the necessary build tools and development libraries.
 RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository ppa:drogon/drogon && \
+    apt-get update && \
     apt-get install -y \
         build-essential \
         cmake \
@@ -19,27 +23,30 @@ RUN apt-get update && \
         nlohmann-json3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory and copy the entire project into the container.
+# Set the working directory and copy the project source code.
 WORKDIR /app
 COPY . .
 
-# Create a build directory, run cmake to configure the project, and then build it.
+# Configure the project with CMake and compile it in Release mode.
+# The -- -j$(nproc) flag tells 'make' to use all available CPU cores for a faster build.
 RUN cmake -B build -DCMAKE_BUILD_TYPE=Release && \
     cmake --build build --config Release -- -j$(nproc)
 
 # ---
 
 # Stage 2: The Final Runtime Image
-# This stage starts from a fresh, clean base image to ensure it's minimal.
+# This stage creates the small, final image for deployment.
 FROM ubuntu:22.04
 
-# Prevent interactive prompts
+# Prevent interactive prompts.
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install only the runtime shared libraries that our compiled application needs.
-# The 'libdrogon1.9' package automatically pulls in the correct runtime dependencies
-# (like libjsoncpp25), avoiding the error you encountered.
+# Install only the runtime libraries.
+# We must add the Drogon PPA here as well, so apt knows where to find 'libdrogon1.9'.
 RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository ppa:drogon/drogon && \
+    apt-get update && \
     apt-get install -y \
         libpq5 \
         libdrogon1.9 \
@@ -51,7 +58,7 @@ WORKDIR /app
 # Copy ONLY the compiled application binary from the builder stage.
 COPY --from=builder /app/build/ThePlusTVServer .
 
-# Expose the port the Drogon server is configured to listen on.
+# Expose the port the server will listen on.
 EXPOSE 8080
 
 # Define the command to run when the container starts.
