@@ -1,6 +1,6 @@
 FROM ubuntu:22.04 AS builder
 
-# Install all required dependencies
+# Install all required dependencies including graphviz for documentation
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
@@ -20,15 +20,22 @@ RUN apt-get update && \
         libbrotli-dev \
         libzstd-dev \
         doxygen \
+        graphviz \
+        dia \
     && rm -rf /var/lib/apt/lists/*
 
-# Build and install Drogon from source with BUILD_DOC=OFF
+# Build and install Drogon from source with all optional features disabled
 RUN git clone https://github.com/drogonframework/drogon && \
     cd drogon && \
-    git checkout v1.9.1 && \
+    git checkout v2.0.0 && \  # Using newer version
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_DOC=OFF .. && \
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_DOC=OFF \
+          -DBUILD_EXAMPLES=OFF \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=ON \
+          .. && \
     make -j$(nproc) && \
     make install && \
     cd ../.. && \
@@ -54,7 +61,6 @@ RUN apt-get update && \
         libuuid1 \
         libbrotli1 \
         libzstd1 \
-        doxygen \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
