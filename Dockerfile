@@ -1,6 +1,6 @@
 FROM ubuntu:22.04 AS builder
 
-# Install all dependencies
+# Install only essential build dependencies
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
@@ -15,18 +15,21 @@ RUN apt-get update && \
         libjsoncpp-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Build and install Drogon from source (using known good version)
+# Build and install Drogon with complete doc/examples/test disable
 RUN git clone https://github.com/drogonframework/drogon && \
     cd drogon && \
-    git checkout v1.8.4 && \
+    git checkout v1.8.3 && \  # Proven stable version
     mkdir build && \
     cd build && \
     cmake -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_DOC=OFF \
+          -DBUILD_DOCS=OFF \
           -DBUILD_EXAMPLES=OFF \
           -DBUILD_TESTING=OFF \
-          .. && \
-    make -j$(nproc) && \
+          -DBUILD_ORM=ON \
+          -DBUILD_SHARED_LIBS=ON \
+          .. > cmake.log 2>&1 && \
+    make -j$(nproc) VERBOSE=1 && \
     make install && \
     cd ../.. && \
     rm -rf drogon
@@ -34,9 +37,9 @@ RUN git clone https://github.com/drogonframework/drogon && \
 WORKDIR /app
 COPY . .
 
-# Build our application
+# Build our application with verbose output
 RUN cmake -B build -DCMAKE_BUILD_TYPE=Release && \
-    cmake --build build --config Release
+    cmake --build build --config Release --verbose
 
 FROM ubuntu:22.04
 
