@@ -15,13 +15,17 @@ RUN apt-get update && \
         libjsoncpp-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Build and install Drogon
+# Build and install Drogon from source (using known good version)
 RUN git clone https://github.com/drogonframework/drogon && \
     cd drogon && \
-    git checkout v2.0.0 && \
+    git checkout v1.8.4 && \
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_DOC=OFF .. && \
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_DOC=OFF \
+          -DBUILD_EXAMPLES=OFF \
+          -DBUILD_TESTING=OFF \
+          .. && \
     make -j$(nproc) && \
     make install && \
     cd ../.. && \
