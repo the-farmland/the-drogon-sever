@@ -7,7 +7,10 @@ set(CMAKE_CXX_STANDARD 17)
 find_package(Boost REQUIRED COMPONENTS system thread)
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
-find_package(Drogon REQUIRED)
+
+
+add_subdirectory(third_party/drogon)
+target_link_libraries(ThePlusTVServer PRIVATE drogon)
 
 # Find nlohmann_json (fall back to download if necessary)
 find_package(nlohmann_json 3.11.2 QUIET)

@@ -1,6 +1,6 @@
 FROM ubuntu:22.04 AS builder
 
-# Install all required dependencies including Drogon
+# Install all required dependencies
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
@@ -14,14 +14,24 @@ RUN apt-get update && \
         libpq-dev \
         libssl-dev \
         wget \
-        gnupg \
-        ca-certificates \
+        zlib1g-dev \
+        uuid-dev \
+        libjsoncpp-dev \
+        libbrotli-dev \
+        libzstd-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Drogon
-RUN wget https://github.com/drogonframework/drogon/releases/download/v1.9.1/drogon-v1.9.1-ubuntu22.04-amd64.deb && \
-    apt-get install -y ./drogon-v1.9.1-ubuntu22.04-amd64.deb && \
-    rm drogon-v1.9.1-ubuntu22.04-amd64.deb
+# Build and install Drogon from source
+RUN git clone https://github.com/drogonframework/drogon && \
+    cd drogon && \
+    git checkout v1.9.1 && \
+    mkdir build && \
+    cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release .. && \
+    make -j$(nproc) && \
+    make install && \
+    cd ../.. && \
+    rm -rf drogon
 
 WORKDIR /app
 COPY . .
