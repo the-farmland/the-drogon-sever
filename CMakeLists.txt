@@ -2,17 +2,15 @@ cmake_minimum_required(VERSION 3.15)
 project(ThePlusTVServer)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Find necessary packages
 find_package(Boost REQUIRED COMPONENTS system thread)
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(Drogon REQUIRED)  # Now available from the base image
 
-
-add_subdirectory(third_party/drogon)
-target_link_libraries(ThePlusTVServer PRIVATE drogon)
-
-# Find nlohmann_json (fall back to download if necessary)
+# Find nlohmann_json
 find_package(nlohmann_json 3.11.2 QUIET)
 if(NOT nlohmann_json_FOUND)
     include(FetchContent)
@@ -24,9 +22,9 @@ if(NOT nlohmann_json_FOUND)
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
-# Find PostgreSQL libpq headers and library
-find_library(LIBPQ_LIBRARY NAMES pq PATHS /usr/lib/x86_64-linux-gnu /usr/lib /usr/local/lib)
-find_path(LIBPQ_INCLUDE_DIR NAMES libpq-fe.h PATHS /usr/include/postgresql /usr/include)
+# Find PostgreSQL
+find_library(LIBPQ_LIBRARY NAMES pq)
+find_path(LIBPQ_INCLUDE_DIR NAMES libpq-fe.h PATHS /usr/include/postgresql)
 
 if(NOT LIBPQ_LIBRARY OR NOT LIBPQ_INCLUDE_DIR)
     message(FATAL_ERROR "PostgreSQL libpq library or includes not found")
