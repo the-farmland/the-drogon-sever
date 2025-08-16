@@ -1,75 +1,58 @@
 # Stage 1: The Builder
-# This stage will first build Drogon from source, then build our application.
+# This stage installs all development tools and libraries, compiles the application,
+# but will be discarded later to keep the final image small.
 FROM ubuntu:22.04 AS builder
 
+# Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies required to build BOTH Drogon and your application.
-# Drogon itself needs git, cmake, g++, zlib, openssl, jsoncpp, and uuid.
+# Update package lists and install all necessary build dependencies.
+# The 'libdrogon-dev' package automatically pulls in the correct versions of
+# its own dependencies (like libjsoncpp-dev) for Ubuntu 22.04.
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
         cmake \
         git \
-        zlib1g-dev \
-        libjsoncpp-dev \
-        uuid-dev \
-        libssl-dev \
+        libdrogon-dev \
         libpq-dev \
         nlohmann-json3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# --- Build Drogon from source ---
-WORKDIR /opt
-RUN git clone https://github.com/drogonframework/drogon.git && \
-    cd drogon && \
-    git submodule update --init && \
-    mkdir build && \
-    cd build && \
-    # Configure cmake for Drogon. BUILD_CTL=OFF and BUILD_EXAMPLES=OFF
-    # are optimizations as we don't need them in the container.
-    cmake .. -DBUILD_CTL=OFF -DBUILD_EXAMPLES=OFF && \
-    make -j$(nproc) && \
-    make install
-
-# --- Build Your Application ---
+# Set the working directory and copy the entire project into the container.
 WORKDIR /app
 COPY . .
 
-# Create a build directory, run cmake, and build your project.
-# It will automatically find the Drogon that was just installed into the system.
+# Create a build directory, run cmake to configure the project, and then build it.
 RUN cmake -B build -DCMAKE_BUILD_TYPE=Release && \
     cmake --build build --config Release -- -j$(nproc)
 
 # ---
 
 # Stage 2: The Final Runtime Image
-# This stage is identical to the one in Solution 1, but we must manually
-# install Drogon's runtime dependencies since we didn't use a package manager.
+# This stage starts from a fresh, clean base image to ensure it's minimal.
 FROM ubuntu:22.04
 
+# Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install runtime dependencies for your application AND for Drogon.
+# Install only the runtime shared libraries that our compiled application needs.
+# The 'libdrogon1.9' package automatically pulls in the correct runtime dependencies
+# (like libjsoncpp25), avoiding the error you encountered.
 RUN apt-get update && \
     apt-get install -y \
         libpq5 \
-        libjsoncpp1 \
-        libuuid1 \
-        libssl3 \
-        zlib1g \
+        libdrogon1.9 \
     && rm -rf /var/lib/apt/lists/*
 
+# Set the working directory.
 WORKDIR /app
 
-# Copy your compiled application from the builder stage.
+# Copy ONLY the compiled application binary from the builder stage.
 COPY --from=builder /app/build/ThePlusTVServer .
 
-# IMPORTANT: Copy the Drogon shared library we built from source in the builder stage.
-COPY --from=builder /usr/local/lib/libdrogon.so /usr/local/lib/
-
-# Update the dynamic linker's cache to find the newly added library.
-RUN ldconfig
-
+# Expose the port the Drogon server is configured to listen on.
 EXPOSE 8080
+
+# Define the command to run when the container starts.
 CMD ["./ThePlusTVServer"]
