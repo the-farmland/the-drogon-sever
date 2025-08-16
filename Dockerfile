@@ -5,15 +5,19 @@ FROM ubuntu:22.04 AS builder
 # Prevent interactive prompts during package installation.
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Update package lists and install dependencies.
-# 1. Install 'software-properties-common' which provides the 'add-apt-repository' command.
-# 2. Add the official Drogon PPA repository.
-# 3. Update the package lists AGAIN to fetch the contents of the new PPA.
-# 4. Install all the necessary build tools and development libraries.
+# --- Add Drogon PPA and Install Dependencies ---
+# This is the robust, manual method for adding a PPA in Docker.
 RUN apt-get update && \
-    apt-get install -y software-properties-common && \
-    add-apt-repository ppa:drogon/drogon && \
+    # 1. Install prerequisite tools: gnupg for key management, curl to download files.
+    apt-get install -y gnupg curl ca-certificates && \
+    # 2. Download the Drogon PPA's GPG key, de-armor it, and save it to the trusted keys directory.
+    curl -sSL 'http://keyserver.ubuntu.com/pks/lookup?op=get&search=0x742618416D396255D9352441D3E5567384484179' | gpg --dearmor -o /usr/share/keyrings/drogon.gpg && \
+    # 3. Add the Drogon PPA to the APT sources list, pointing to the key we just saved.
+    #    'jammy' is the codename for Ubuntu 22.04.
+    echo "deb [signed-by=/usr/share/keyrings/drogon.gpg] http://ppa.launchpadcontent.net/drogon/drogon/ubuntu jammy main" > /etc/apt/sources.list.d/drogon.list && \
+    # 4. Update package lists again to include packages from the new PPA.
     apt-get update && \
+    # 5. Now, install all build dependencies.
     apt-get install -y \
         build-essential \
         cmake \
@@ -28,7 +32,6 @@ WORKDIR /app
 COPY . .
 
 # Configure the project with CMake and compile it in Release mode.
-# The -- -j$(nproc) flag tells 'make' to use all available CPU cores for a faster build.
 RUN cmake -B build -DCMAKE_BUILD_TYPE=Release && \
     cmake --build build --config Release -- -j$(nproc)
 
@@ -41,12 +44,14 @@ FROM ubuntu:22.04
 # Prevent interactive prompts.
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install only the runtime libraries.
-# We must add the Drogon PPA here as well, so apt knows where to find 'libdrogon1.9'.
+# --- Add Drogon PPA and Install Runtime Dependencies ---
+# We must repeat the PPA addition process here for the new stage.
 RUN apt-get update && \
-    apt-get install -y software-properties-common && \
-    add-apt-repository ppa:drogon/drogon && \
+    apt-get install -y gnupg curl ca-certificates && \
+    curl -sSL 'http://keyserver.ubuntu.com/pks/lookup?op=get&search=0x742618416D396255D9352441D3E5567384484179' | gpg --dearmor -o /usr/share/keyrings/drogon.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/drogon.gpg] http://ppa.launchpadcontent.net/drogon/drogon/ubuntu jammy main" > /etc/apt/sources.list.d/drogon.list && \
     apt-get update && \
+    # Now install only the necessary runtime libraries.
     apt-get install -y \
         libpq5 \
         libdrogon1.9 \
