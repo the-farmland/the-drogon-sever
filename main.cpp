@@ -224,40 +224,43 @@ int main(){
             },{drogon::Get});
 
         // RPC endpoint
-        drogon::app().registerHandler("/rpc",
-            [](const drogon::HttpRequestPtr &req,std::function<void(const drogon::HttpResponsePtr&)> &&cb){
-                auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value());
-                resp->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+// Replace in your /rpc handler:
+drogon::app().registerHandler("/rpc",
+    [](const drogon::HttpRequestPtr &req,std::function<void(const drogon::HttpResponsePtr&)> &&cb){
+        try {
+            auto body = req->getBody();
+            auto j = json::parse(body);
 
-                try{
-                    auto body = req->getBody();
-                    auto j = json::parse(body);
+            std::string uid;
+            if(j["params"].contains("userid")) uid = j["params"]["userid"];
 
-                    std::string uid;
-                    if(j["params"].contains("userid")) uid = j["params"]["userid"];
-
-                    if(!uid.empty()){
-                        if(isUserBlocked(dbConn->get(), uid)){
-                            resp->setStatusCode(drogon::k429TooManyRequests);
-                            resp->setBody(json{{"success",false},{"error","Rate limit exceeded"}}.dump());
-                            cb(resp);
-                            return;
-                        }
-                        logUserRequest(dbConn->get(), uid);
-                    }
-
-                    auto out = dispatcher->dispatch(j);
-                    if(!uid.empty()) logUserResponse(dbConn->get(), uid);
-
-                    resp->setBody(out.dump());
-
-                }catch(const std::exception &e){
-                    resp->setStatusCode(drogon::k400BadRequest);
-                    resp->setBody(json{{"success",false},{"error",e.what()}}.dump());
+            if(!uid.empty()){
+                if(isUserBlocked(dbConn->get(), uid)){
+                    json err = {{"success",false},{"error","Rate limit exceeded"}};
+                    auto resp = drogon::HttpResponse::newHttpJsonResponse(err.dump());
+                    resp->setStatusCode(drogon::k429TooManyRequests);
+                    cb(resp);
+                    return;
                 }
+                logUserRequest(dbConn->get(), uid);
+            }
 
-                cb(resp);
-            },{drogon::Post,drogon::Options});
+            auto out = dispatcher->dispatch(j);
+            if(!uid.empty()) logUserResponse(dbConn->get(), uid);
+
+            // ✅ Always JSON response
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(out.dump());
+            resp->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+            cb(resp);
+
+        } catch(const std::exception &e){
+            json err = {{"success",false},{"error",e.what()}};
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(err.dump());
+            resp->setStatusCode(drogon::k400BadRequest);
+            cb(resp);
+        }
+    },{drogon::Post,drogon::Options});
+
 
         std::cout<<"Server running on 0.0.0.0:8080\n";
         drogon::app().addListener("0.0.0.0",8080).run();
