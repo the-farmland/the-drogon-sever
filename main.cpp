@@ -17,7 +17,7 @@ int main() {
         {drogon::Get}
     );
 
-    // Bind to PORT (Render sets $PORT env var, fallback 8080)
+    // Bind to $PORT (Render sets this dynamically), fallback 8080
     const char* portStr = std::getenv("PORT");
     uint16_t port = portStr ? static_cast<uint16_t>(std::stoi(portStr)) : 8080;
     drogon::app().addListener("0.0.0.0", port);

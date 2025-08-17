@@ -1,4 +1,4 @@
-# Use Ubuntu as base
+# Build stage
 FROM ubuntu:22.04 AS build
 
 # Install dependencies
@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     libjsoncpp-dev libc-ares-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Build and install Drogon
+# Build Drogon
 RUN git clone https://github.com/drogonframework/drogon.git /tmp/drogon \
     && cd /tmp/drogon \
     && git submodule update --init \
@@ -16,12 +16,12 @@ RUN git clone https://github.com/drogonframework/drogon.git /tmp/drogon \
     && make -j$(nproc) && make install \
     && ldconfig
 
-# Build your app
+# Build app
 WORKDIR /app
 COPY . .
 RUN mkdir build && cd build && cmake .. && make -j$(nproc)
 
-# Final lightweight image
+# Runtime stage
 FROM ubuntu:22.04
 RUN apt-get update && apt-get install -y \
     libssl-dev zlib1g uuid-runtime libjsoncpp-dev libc-ares-dev \
@@ -32,11 +32,7 @@ COPY --from=build /usr/local/include /usr/local/include
 COPY --from=build /usr/local/bin/drogon_ctl /usr/local/bin/
 COPY --from=build /app/build/drogon_hello /usr/local/bin/drogon_hello
 
-# Set LD_LIBRARY_PATH
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
-# Bind to port (Render provides $PORT)
-ENV PORT=8080
 EXPOSE 8080
-
 CMD ["drogon_hello"]
