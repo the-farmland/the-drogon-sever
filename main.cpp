@@ -6,8 +6,36 @@
 #include <unordered_map>
 #include <functional>
 #include <iostream>
+#include <json/json.h>  // for Json::Value (jsoncpp)
 
 using json = nlohmann::json;
+
+// -------------------- Helper: Convert nlohmann::json → Json::Value --------------------
+Json::Value toJsonCpp(const nlohmann::json& j) {
+    Json::Value v;
+    if (j.isObject()) {
+        for (auto& el : j.items()) {
+            v[el.key()] = toJsonCpp(el.value());
+        }
+    } else if (j.isArray()) {
+        for (auto& el : j) {
+            v.append(toJsonCpp(el));
+        }
+    } else if (j.isString()) {
+        v = j.get<std::string>();
+    } else if (j.isBoolean()) {
+        v = j.get<bool>();
+    } else if (j.isNumberInteger()) {
+        v = j.get<long long>();
+    } else if (j.isNumberUnsigned()) {
+        v = j.get<unsigned long long>();
+    } else if (j.isNumberFloat()) {
+        v = j.get<double>();
+    } else if (j.isNull()) {
+        v = Json::nullValue;
+    }
+    return v;
+}
 
 // -------------------- Database Wrapper --------------------
 class DatabaseConnection {
@@ -224,44 +252,40 @@ int main(){
             },{drogon::Get});
 
         // RPC endpoint
-drogon::app().registerHandler("/rpc",
-    [](const drogon::HttpRequestPtr &req,std::function<void(const drogon::HttpResponsePtr&)> &&cb){
-        try {
-            auto body = req->getBody();
-            auto j = json::parse(body);
+        drogon::app().registerHandler("/rpc",
+            [](const drogon::HttpRequestPtr &req,std::function<void(const drogon::HttpResponsePtr&)> &&cb){
+                try {
+                    auto body = req->getBody();
+                    auto j = json::parse(body);
 
-            std::string uid;
-            if(j["params"].contains("userid")) uid = j["params"]["userid"];
+                    std::string uid;
+                    if(j["params"].contains("userid")) uid = j["params"]["userid"];
 
-            if(!uid.empty()){
-                if(isUserBlocked(dbConn->get(), uid)){
-                    json err = {{"success",false},{"error","Rate limit exceeded"}};
-                    auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
-                    resp->setStatusCode(drogon::k429TooManyRequests);
+                    if(!uid.empty()){
+                        if(isUserBlocked(dbConn->get(), uid)){
+                            json err = {{"success",false},{"error","Rate limit exceeded"}};
+                            auto resp = drogon::HttpResponse::newHttpJsonResponse(toJsonCpp(err));
+                            resp->setStatusCode(drogon::k429TooManyRequests);
+                            cb(resp);
+                            return;
+                        }
+                        logUserRequest(dbConn->get(), uid);
+                    }
+
+                    auto out = dispatcher->dispatch(j);
+                    if(!uid.empty()) logUserResponse(dbConn->get(), uid);
+
+                    auto resp = drogon::HttpResponse::newHttpJsonResponse(toJsonCpp(out));
+                    resp->setContentTypeCode(drogon::CT_APPLICATION_JSON);
                     cb(resp);
-                    return;
+
+                } catch(const std::exception &e){
+                    json err = {{"success",false},{"error",e.what()}};
+                    auto resp = drogon::HttpResponse::newHttpJsonResponse(toJsonCpp(err));
+                    resp->setStatusCode(drogon::k400BadRequest);
+                    cb(resp);
                 }
-                logUserRequest(dbConn->get(), uid);
-            }
-
-            auto out = dispatcher->dispatch(j);
-            if(!uid.empty()) logUserResponse(dbConn->get(), uid);
-
-            // ✅ Proper JSON response (no .dump())
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(out);
-            resp->setContentTypeCode(drogon::CT_APPLICATION_JSON);
-            cb(resp);
-
-        } catch(const std::exception &e){
-            json err = {{"success",false},{"error",e.what()}};
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
-            resp->setStatusCode(drogon::k400BadRequest);
-            cb(resp);
-        }
-    },{drogon::Post,drogon::Options});
-
-
-
+            },{drogon::Post,drogon::Options});
 
         std::cout<<"Server running on 0.0.0.0:8080\n";
         drogon::app().addListener("0.0.0.0",8080).run();
