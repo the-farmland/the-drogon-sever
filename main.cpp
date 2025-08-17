@@ -207,7 +207,7 @@ int main(){
         dispatcher->reg("getLocationById",rpcGetById);
         dispatcher->reg("searchLocations",rpcSearch);
 
-        // Strong CORS
+        // Strong CORS middleware
         drogon::app().registerPostHandlingAdvice(
             [](const drogon::HttpRequestPtr&,const drogon::HttpResponsePtr&resp){
                 resp->addHeader("Access-Control-Allow-Origin","*");
@@ -226,27 +226,36 @@ int main(){
         // RPC endpoint
         drogon::app().registerHandler("/rpc",
             [](const drogon::HttpRequestPtr &req,std::function<void(const drogon::HttpResponsePtr&)> &&cb){
-                auto resp=drogon::HttpResponse::newHttpJsonResponse();
+                auto resp = drogon::HttpResponse::newHttpJsonResponse(Json::Value());
+                resp->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+
                 try{
-                    auto body=req->getBody();
-                    auto j=json::parse(body);
+                    auto body = req->getBody();
+                    auto j = json::parse(body);
+
                     std::string uid;
-                    if(j["params"].contains("userid")) uid=j["params"]["userid"];
+                    if(j["params"].contains("userid")) uid = j["params"]["userid"];
+
                     if(!uid.empty()){
-                        if(isUserBlocked(dbConn->get(),uid)){
+                        if(isUserBlocked(dbConn->get(), uid)){
                             resp->setStatusCode(drogon::k429TooManyRequests);
-                            resp->setJson(json{{"success",false},{"error","Rate limit exceeded"}});
-                            cb(resp);return;
+                            resp->setBody(json{{"success",false},{"error","Rate limit exceeded"}}.dump());
+                            cb(resp);
+                            return;
                         }
-                        logUserRequest(dbConn->get(),uid);
+                        logUserRequest(dbConn->get(), uid);
                     }
-                    auto out=dispatcher->dispatch(j);
-                    if(!uid.empty()) logUserResponse(dbConn->get(),uid);
-                    resp->setJson(out);
-                }catch(std::exception&e){
+
+                    auto out = dispatcher->dispatch(j);
+                    if(!uid.empty()) logUserResponse(dbConn->get(), uid);
+
+                    resp->setBody(out.dump());
+
+                }catch(const std::exception &e){
                     resp->setStatusCode(drogon::k400BadRequest);
-                    resp->setJson(json{{"success",false},{"error",e.what()}});
+                    resp->setBody(json{{"success",false},{"error",e.what()}}.dump());
                 }
+
                 cb(resp);
             },{drogon::Post,drogon::Options});
 
