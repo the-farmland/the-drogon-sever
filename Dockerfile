@@ -20,7 +20,7 @@ RUN mkdir build && cd build && cmake .. && make -j$(nproc)
 # Runtime
 FROM ubuntu:22.04
 RUN apt-get update && apt-get install -y \
-    libssl-dev zlib1g uuid-runtime libc-ares-dev libpq5 \
+    libssl-dev zlib1g uuid-runtime libc-ares-dev libpq5 libjsoncpp25 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /usr/local/lib /usr/local/lib
@@ -31,3 +31,4 @@ COPY --from=build /app/build/drogon_locations /usr/local/bin/drogon_locations
 ENV LD_LIBRARY_PATH=/usr/local/lib
 EXPOSE 8080
 CMD ["drogon_locations"]
+
