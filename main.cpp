@@ -6,8 +6,8 @@ int main() {
     // Define the /hello endpoint
     drogon::app().registerHandler(
         "/hello",
-        [](drogon::HttpRequestPtr req,
-           std::function<void(drogon::HttpResponsePtr)> callback) {
+        [](const drogon::HttpRequestPtr &req,
+           std::function<void(const drogon::HttpResponsePtr &)> &&callback) {
             auto resp = drogon::HttpResponse::newHttpResponse();
             resp->setStatusCode(drogon::k200OK);
             resp->setContentTypeCode(drogon::CT_TEXT_PLAIN);
