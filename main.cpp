@@ -13,25 +13,25 @@ using json = nlohmann::json;
 // -------------------- Helper: Convert nlohmann::json → Json::Value --------------------
 Json::Value toJsonCpp(const nlohmann::json& j) {
     Json::Value v;
-    if (j.isObject()) {
+    if (j.is_object()) {
         for (auto& el : j.items()) {
             v[el.key()] = toJsonCpp(el.value());
         }
-    } else if (j.isArray()) {
+    } else if (j.is_array()) {
         for (auto& el : j) {
             v.append(toJsonCpp(el));
         }
-    } else if (j.isString()) {
+    } else if (j.is_string()) {
         v = j.get<std::string>();
-    } else if (j.isBoolean()) {
+    } else if (j.is_boolean()) {
         v = j.get<bool>();
-    } else if (j.isNumberInteger()) {
-        v = j.get<long long>();
-    } else if (j.isNumberUnsigned()) {
-        v = j.get<unsigned long long>();
-    } else if (j.isNumberFloat()) {
+    } else if (j.is_number_integer()) {
+        v = static_cast<Json::Int64>(j.get<long long>());
+    } else if (j.is_number_unsigned()) {
+        v = static_cast<Json::UInt64>(j.get<unsigned long long>());
+    } else if (j.is_number_float()) {
         v = j.get<double>();
-    } else if (j.isNull()) {
+    } else if (j.is_null()) {
         v = Json::nullValue;
     }
     return v;
