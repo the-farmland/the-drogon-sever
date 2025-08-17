@@ -9,6 +9,9 @@ find_package(Drogon REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 
+# Use official PostgreSQL CMake module
+find_package(PostgreSQL REQUIRED)
+
 # nlohmann_json
 find_package(nlohmann_json 3.11.2 QUIET)
 if(NOT nlohmann_json_FOUND)
@@ -21,10 +24,13 @@ if(NOT nlohmann_json_FOUND)
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
-# PostgreSQL libpq
-find_library(LIBPQ_LIBRARY NAMES pq)
-find_path(LIBPQ_INCLUDE_DIR NAMES libpq-fe.h)
-include_directories(${LIBPQ_INCLUDE_DIR})
-
 add_executable(drogon_locations main.cpp)
-target_link_libraries(drogon_locations PRIVATE Drogon::Drogon OpenSSL::SSL OpenSSL::Crypto Threads::Threads ${LIBPQ_LIBRARY} nlohmann_json::nlohmann_json)
+
+target_include_directories(drogon_locations PRIVATE ${PostgreSQL_INCLUDE_DIRS})
+target_link_libraries(drogon_locations PRIVATE
+    Drogon::Drogon
+    OpenSSL::SSL OpenSSL::Crypto
+    Threads::Threads
+    nlohmann_json::nlohmann_json
+    ${PostgreSQL_LIBRARIES}
+)
