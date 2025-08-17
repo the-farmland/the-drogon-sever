@@ -224,7 +224,6 @@ int main(){
             },{drogon::Get});
 
         // RPC endpoint
-// Replace in your /rpc handler:
 drogon::app().registerHandler("/rpc",
     [](const drogon::HttpRequestPtr &req,std::function<void(const drogon::HttpResponsePtr&)> &&cb){
         try {
@@ -237,7 +236,7 @@ drogon::app().registerHandler("/rpc",
             if(!uid.empty()){
                 if(isUserBlocked(dbConn->get(), uid)){
                     json err = {{"success",false},{"error","Rate limit exceeded"}};
-                    auto resp = drogon::HttpResponse::newHttpJsonResponse(err.dump());
+                    auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
                     resp->setStatusCode(drogon::k429TooManyRequests);
                     cb(resp);
                     return;
@@ -248,18 +247,20 @@ drogon::app().registerHandler("/rpc",
             auto out = dispatcher->dispatch(j);
             if(!uid.empty()) logUserResponse(dbConn->get(), uid);
 
-            // ✅ Always JSON response
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(out.dump());
+            // ✅ Proper JSON response (no .dump())
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(out);
             resp->setContentTypeCode(drogon::CT_APPLICATION_JSON);
             cb(resp);
 
         } catch(const std::exception &e){
             json err = {{"success",false},{"error",e.what()}};
-            auto resp = drogon::HttpResponse::newHttpJsonResponse(err.dump());
+            auto resp = drogon::HttpResponse::newHttpJsonResponse(err);
             resp->setStatusCode(drogon::k400BadRequest);
             cb(resp);
         }
     },{drogon::Post,drogon::Options});
+
+
 
 
         std::cout<<"Server running on 0.0.0.0:8080\n";
