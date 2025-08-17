@@ -1,11 +1,13 @@
 #include <drogon/drogon.h>
+#include <cstdlib>   // for std::getenv
+#include <string>
 
 int main() {
     // Define the /hello endpoint
     drogon::app().registerHandler(
         "/hello",
-        [](const drogon::HttpRequestPtr&,
-           std::function<void (const drogon::HttpResponsePtr &)> callback) {
+        [](drogon::HttpRequestPtr req,
+           std::function<void(drogon::HttpResponsePtr)> callback) {
             auto resp = drogon::HttpResponse::newHttpResponse();
             resp->setStatusCode(drogon::k200OK);
             resp->setContentTypeCode(drogon::CT_TEXT_PLAIN);
@@ -15,10 +17,11 @@ int main() {
         {drogon::Get}
     );
 
-    // Bind to port 8080 (Render expects this by default)
-    drogon::app().addListener("0.0.0.0", 8080);
+    // Bind to PORT (Render sets $PORT env var, fallback 8080)
+    const char* portStr = std::getenv("PORT");
+    uint16_t port = portStr ? static_cast<uint16_t>(std::stoi(portStr)) : 8080;
+    drogon::app().addListener("0.0.0.0", port);
 
-    // Run the app
     drogon::app().run();
     return 0;
 }
