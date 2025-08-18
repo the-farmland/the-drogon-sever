@@ -65,6 +65,11 @@ struct Location {
     std::string description;
     std::string svg_link;
     double rating;
+    std::string map_main_image;
+    std::string map_cover_image;
+    std::string main_background_image;
+    std::string map_full_address;
+    std::string map_png_link;
 };
 
 // -------------------- Location Service --------------------
@@ -82,14 +87,20 @@ private:
     }
 
     Location rowToLocation(PGresult* res, int row) const {
+        // Column order must match the table definition
         return Location{
-            PQgetvalue(res, row, 0) ? sanitize(PQgetvalue(res, row, 0)) : "",
-            PQgetvalue(res, row, 1) ? sanitize(PQgetvalue(res, row, 1)) : "",
-            PQgetvalue(res, row, 2) ? sanitize(PQgetvalue(res, row, 2)) : "",
-            PQgetvalue(res, row, 3) ? sanitize(PQgetvalue(res, row, 3)) : "",
-            PQgetvalue(res, row, 4) ? sanitize(PQgetvalue(res, row, 4)) : "",
-            PQgetvalue(res, row, 5) ? sanitize(PQgetvalue(res, row, 5)) : "",
-            PQgetvalue(res, row, 6) ? std::stod(PQgetvalue(res, row, 6)) : 0.0
+            PQgetvalue(res, row, 0) ? sanitize(PQgetvalue(res, row, 0)) : "", // id
+            PQgetvalue(res, row, 1) ? sanitize(PQgetvalue(res, row, 1)) : "", // name
+            PQgetvalue(res, row, 2) ? sanitize(PQgetvalue(res, row, 2)) : "", // country
+            PQgetvalue(res, row, 3) ? sanitize(PQgetvalue(res, row, 3)) : "", // state
+            PQgetvalue(res, row, 4) ? sanitize(PQgetvalue(res, row, 4)) : "", // description
+            PQgetvalue(res, row, 5) ? sanitize(PQgetvalue(res, row, 5)) : "", // svg_link
+            PQgetvalue(res, row, 6) ? std::stod(PQgetvalue(res, row, 6)) : 0.0, // rating
+            PQgetvalue(res, row, 7) ? sanitize(PQgetvalue(res, row, 7)) : "", // map_main_image
+            PQgetvalue(res, row, 8) ? sanitize(PQgetvalue(res, row, 8)) : "", // map_cover_image
+            PQgetvalue(res, row, 9) ? sanitize(PQgetvalue(res, row, 9)) : "", // main_background_image
+            PQgetvalue(res, row,10) ? sanitize(PQgetvalue(res, row,10)) : "", // map_full_address
+            PQgetvalue(res, row,11) ? sanitize(PQgetvalue(res, row,11)) : ""  // map_png_link
         };
     }
 
@@ -191,7 +202,7 @@ std::unique_ptr<DatabaseConnection> dbConn;
 std::unique_ptr<LocationService> locService;
 std::shared_ptr<RpcDispatcher> dispatcher;
 
-// Hardcoded for now
+// Hardcoded for now (unchanged)
 const std::string CONNINFO =
     "postgresql://postgres.vxqsqaysrpxliofqxjyu:the-plus-maps-password"
     "@aws-0-us-east-2.pooler.supabase.com:5432/postgres?sslmode=require";
@@ -201,7 +212,12 @@ json locToJson(const Location& l){
     return {
         {"id",l.id},{"name",l.name},{"country",l.country},
         {"state",l.state},{"description",l.description},
-        {"svg_link",l.svg_link},{"rating",l.rating}
+        {"svg_link",l.svg_link},{"rating",l.rating},
+        {"map_main_image", l.map_main_image},
+        {"map_cover_image", l.map_cover_image},
+        {"main_background_image", l.main_background_image},
+        {"map_full_address", l.map_full_address},
+        {"map_png_link", l.map_png_link}
     };
 }
 
