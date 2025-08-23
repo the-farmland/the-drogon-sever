@@ -114,3 +114,83 @@ VALUES
     ('tokyo', 'Tokyo', 'Japan', NULL, 'Vibrant capital of Japan', 'https://example.com/tokyo.svg', 4.7)
 
 ON CONFLICT (id) DO NOTHING;
+
+-- File: function.sql
+
+-- (Existing functions and tables from your original file are assumed to be here)
+-- ...
+
+-- Add a 'boards' column to the locations table to store scoreboard/leaderboard data.
+-- Using JSONB is efficient for storing and querying structured, schemaless data.
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS boards JSONB;
+
+-- Create a new table 'charts' for tracking supplementary data for events,
+-- matches, or elections, linked to a location.
+CREATE TABLE IF NOT EXISTS charts (
+    id SERIAL PRIMARY KEY,
+    location_id TEXT NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+    chart_type VARCHAR(100) NOT NULL, -- e.g., 'match_statistics', 'lap_times', 'voter_demographics'
+    title VARCHAR(255) NOT NULL,
+    chart_data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create an index on location_id for faster lookups in the 'charts' table.
+CREATE INDEX IF NOT EXISTS idx_charts_location_id ON charts(location_id);
+
+-- Upsert the "Grand Prix Hungary 2025" location with its race results.
+-- The 'boards' data includes a leaderboard structure.
+INSERT INTO locations (id, name, country, description, boards)
+VALUES 
+    ('grand-prix-hungary-2025', 'Grand Prix Hungary 2025', 'Hungary', 'Formula 1 racing event at the Hungaroring.',
+     '{
+        "title": "Race Results",
+        "type": "F1_LEADERBOARD",
+        "drivers": [
+            {"position": 1, "name": "Driver A", "team": "Team X", "time": "1:35:24.112"},
+            {"position": 2, "name": "Driver B", "team": "Team Y", "time": "1:35:32.543"},
+            {"position": 3, "name": "Driver C", "team": "Team Z", "time": "1:35:45.987"}
+        ]
+      }')
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    country = EXCLUDED.country,
+    description = EXCLUDED.description,
+    boards = EXCLUDED.boards;
+
+-- Upsert the FIFA 2026 match location with its initial game board.
+-- The 'boards' data shows a match score structure.
+INSERT INTO locations (id, name, country, description, boards)
+VALUES 
+    ('fifa26-mex-grupa-1', 'Match 1 - Group A (Mexico #1) – Estadio Azteca Mexico City', 'Mexico', 'Opening match for Group A in the FIFA World Cup 2026.',
+     '{
+        "title": "Match Score",
+        "type": "FOOTBALL_MATCH",
+        "status": "Scheduled",
+        "teams": {
+            "home": {"name": "Mexico", "score": 0},
+            "away": {"name": "TBD", "score": 0}
+        },
+        "details": "Kick-off: TBD"
+      }')
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    country = EXCLUDED.country,
+    description = EXCLUDED.description,
+    boards = EXCLUDED.boards;
+
+-- Add sample chart data for the FIFA match location.
+-- This demonstrates how to store related but separate data visualizations.
+INSERT INTO charts (location_id, chart_type, title, chart_data)
+VALUES
+    ('fifa26-mex-grupa-1', 'team_head_to_head', 'Historical Performance: Mexico vs TBD', 
+     '{
+        "mexico_wins": 5,
+        "tbd_wins": 3,
+        "draws": 2
+     }')
+ON CONFLICT (id) DO NOTHING;
+
+
+
+
